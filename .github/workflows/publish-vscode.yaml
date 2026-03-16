@@ -63,27 +63,27 @@ jobs:
             contents: write
 
         steps:
-            - uses: ./.github/actions/github-checkout
+            - uses: krudi/reusable-actions/.github/actions/github-checkout@main
               with:
                   fetch_depth: ${{ inputs.checkout_fetch_depth }}
 
-            - uses: ./.github/actions/node-setup
+            - uses: krudi/reusable-actions/.github/actions/node-setup@main
               with:
                   cache: npm
                   node_version_file: ${{ inputs.node_version_file }}
 
-            - uses: ./.github/actions/node-install
+            - uses: krudi/reusable-actions/.github/actions/node-install@main
               with:
                   install_command: ${{ inputs.install_command }}
                   working_directory: ${{ inputs.working_directory }}
 
-            - uses: ./.github/actions/ci-command
+            - uses: krudi/reusable-actions/.github/actions/ci-command@main
               if: ${{ inputs.check_command != '' }}
               with:
                   command: ${{ inputs.check_command }}
                   working_directory: ${{ inputs.working_directory }}
 
-            - uses: ./.github/actions/ci-command
+            - uses: krudi/reusable-actions/.github/actions/ci-command@main
               if: ${{ inputs.package_command != '' }}
               with:
                   command: ${{ inputs.package_command }}
@@ -108,7 +108,7 @@ jobs:
 
                   gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
 
-            - uses: ./.github/actions/ci-command
+            - uses: krudi/reusable-actions/.github/actions/ci-command@main
               if: ${{ inputs.publish_command != '' }}
               with:
                   command: ${{ inputs.publish_command }}

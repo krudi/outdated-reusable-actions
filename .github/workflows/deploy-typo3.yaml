@@ -48,9 +48,9 @@ jobs:
             contents: read
 
         steps:
-            - uses: ./.github/actions/github-checkout
+            - uses: krudi/reusable-actions/.github/actions/github-checkout@main
 
-            - uses: ./.github/actions/php-setup
+            - uses: krudi/reusable-actions/.github/actions/php-setup@main
               with:
                   php_version: ${{ inputs.php_version }}
 
@@ -58,24 +58,24 @@ jobs:
               shell: bash
               run: composer validate
 
-            - uses: ./.github/actions/php-composer-cache
+            - uses: krudi/reusable-actions/.github/actions/php-composer-cache@main
               with:
                   php_version: ${{ inputs.php_version }}
 
-            - uses: ./.github/actions/php-install-run
+            - uses: krudi/reusable-actions/.github/actions/php-install-run@main
               with:
                   install_command: ${{ inputs.composer_install_command }}
 
-            - uses: ./.github/actions/node-setup
+            - uses: krudi/reusable-actions/.github/actions/node-setup@main
               with:
                   cache: npm
                   node_version_file: ${{ inputs.node_version_file }}
 
-            - uses: ./.github/actions/node-install
+            - uses: krudi/reusable-actions/.github/actions/node-install@main
               with:
                   install_command: ${{ inputs.node_install_command }}
 
-            - uses: ./.github/actions/node-build
+            - uses: krudi/reusable-actions/.github/actions/node-build@main
               with:
                   build_command: ${{ inputs.node_build_command }}
 

@@ -25,12 +25,12 @@ jobs:
                     - 'npm run lint:prettier'
 
         steps:
-            - uses: ./.github/actions/github-checkout
+            - uses: krudi/reusable-actions/.github/actions/github-checkout@main
 
-            - uses: ./.github/actions/node-setup
+            - uses: krudi/reusable-actions/.github/actions/node-setup@main
 
-            - uses: ./.github/actions/node-install
+            - uses: krudi/reusable-actions/.github/actions/node-install@main
 
-            - uses: ./.github/actions/ci-command
+            - uses: krudi/reusable-actions/.github/actions/ci-command@main
               with:
                   command: ${{ matrix.lint-commands }}

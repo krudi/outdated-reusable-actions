@@ -66,27 +66,27 @@ jobs:
             id-token: write
 
         steps:
-            - uses: ./.github/actions/github-checkout
+            - uses: krudi/reusable-actions/.github/actions/github-checkout@main
               with:
                   fetch_depth: ${{ inputs.checkout_fetch_depth }}
 
-            - uses: ./.github/actions/node-setup
+            - uses: krudi/reusable-actions/.github/actions/node-setup@main
               with:
                   cache: npm
                   node_version_file: ${{ inputs.node_version_file }}
 
-            - uses: ./.github/actions/node-install
+            - uses: krudi/reusable-actions/.github/actions/node-install@main
               with:
                   install_command: ${{ inputs.install_command }}
                   working_directory: ${{ inputs.working_directory }}
 
-            - uses: ./.github/actions/ci-command
+            - uses: krudi/reusable-actions/.github/actions/ci-command@main
               if: ${{ inputs.check_command != '' }}
               with:
                   command: ${{ inputs.check_command }}
                   working_directory: ${{ inputs.working_directory }}
 
-            - uses: ./.github/actions/node-build
+            - uses: krudi/reusable-actions/.github/actions/node-build@main
               if: ${{ inputs.build_command != '' }}
               with:
                   build_command: ${{ inputs.build_command }}

@@ -65,11 +65,11 @@ jobs:
             contents: write
 
         steps:
-            - uses: ./.github/actions/github-checkout
+            - uses: krudi/reusable-actions/.github/actions/github-checkout@main
               with:
                   fetch_depth: ${{ inputs.checkout_fetch_depth }}
 
-            - uses: ./.github/actions/node-setup
+            - uses: krudi/reusable-actions/.github/actions/node-setup@main
               with:
                   cache: npm
                   node_version_file: ${{ inputs.node_version_file }}
