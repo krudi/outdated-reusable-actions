@@ -24,12 +24,12 @@ workflows so release, publish, and deploy logic can stay consistent across repos
 
 ## Reusable workflows
 
-| Workflow            | Path                               | What it does                                                   |
-| ------------------- | ---------------------------------- | -------------------------------------------------------------- |
-| Create Release      | `.github/workflows/create-release` | Bump version, commit, tag, and create a GitHub release.        |
-| Publish NPM Package | `.github/workflows/publish-npm`    | Install, optionally check/build, and publish a package to npm. |
-| Publish VS Code     | `.github/workflows/publish-vscode` | Install, check, package, upload VSIX, and publish extension.   |
-| Deploy TYPO3        | `.github/workflows/deploy-typo3`   | Run the shared TYPO3 deploy pipeline.                          |
+| Workflow            | Path                                    | What it does                                                                |
+| ------------------- | --------------------------------------- | --------------------------------------------------------------------------- |
+| Release And Publish | `.github/workflows/release-and-publish` | Create the release, then optionally publish npm or VS Code in the same run. |
+| Publish NPM Package | `.github/workflows/publish-npm`         | Install, optionally check/build, and publish a package to npm.              |
+| Publish VS Code     | `.github/workflows/publish-vscode`      | Install, check, package, upload VSIX, and publish extension.                |
+| Deploy TYPO3        | `.github/workflows/deploy-typo3`        | Run the shared TYPO3 deploy pipeline.                                       |
 
 ## Quick start
 
@@ -40,13 +40,13 @@ workflows so release, publish, and deploy logic can stay consistent across repos
 Recommended:
 
 ```yaml
-uses: krudi/reusable-actions/.github/workflows/publish-npm.yaml@v1
+uses: krudi/reusable-actions/.github/workflows/release-and-publish.yaml@v1
 ```
 
 Temporary during active development:
 
 ```yaml
-uses: krudi/reusable-actions/.github/workflows/publish-npm.yaml@main
+uses: krudi/reusable-actions/.github/workflows/release-and-publish.yaml@main
 ```
 
 Use `@main` only while iterating. Once the reusable interface is stable, move callers to a tagged ref such as `@v1`.
@@ -65,30 +65,9 @@ Usage examples (with inputs) live alongside each action:
 
 ## Workflow contracts
 
-### `create-release`
-
-Use this for manual `workflow_dispatch` release entrypoints. It:
-
-- validates the requested version
-- bumps the target package version
-- verifies the expected file version
-- fails if the target tag already exists
-- fails if unexpected files change during the version bump
-- commits only the allowed release files
-- pushes the branch, creates the tag, and creates the GitHub release
-
-Important inputs:
-
-- `package_json_path`
-- `package_lock_path`
-- `workspace`
-- `tag_prefix`
-- `commit_message`
-- `extra_commit_paths`
-
 ### `publish-npm`
 
-Use this for `release.published` npm publishing jobs.
+Use this for special cases where you want npm publishing without the shared release step.
 
 Important inputs:
 
@@ -97,10 +76,11 @@ Important inputs:
 - `build_command`
 - `npm_access`
 - `npm_provenance`
+- `checkout_ref`
 
 ### `publish-vscode`
 
-Use this for `release.published` VS Code extension publishing jobs.
+Use this for special cases where you want VS Code publishing without the shared release step.
 
 Important inputs:
 
@@ -108,6 +88,26 @@ Important inputs:
 - `package_command`
 - `publish_command`
 - `vsce_glob`
+- `checkout_ref`
+- `release_tag`
+
+### `release-and-publish`
+
+Use this when you want one manual workflow that accepts a version input, creates the tag and GitHub release with
+generated notes, and then immediately publishes the selected target.
+
+Important inputs:
+
+- `version`
+- `publish_target`
+- `create_latest`
+- `workspace`
+- `tag_prefix`
+- `package_json_path`
+- `package_lock_path`
+- `check_command`
+- `build_command`
+- `package_command`
 
 ### `deploy-typo3`
 
@@ -186,12 +186,15 @@ on:
 
 jobs:
     release:
-        uses: krudi/reusable-actions/.github/workflows/create-release.yaml@v1
+        uses: krudi/reusable-actions/.github/workflows/release-and-publish.yaml@v1
         with:
             version: ${{ inputs.version }}
+            publish_target: npm
             workspace: '@krudi/eslint-config'
             package_json_path: packages/eslint-config/package.json
             package_lock_path: package-lock.json
             tag_prefix: '@krudi/eslint-config@'
             commit_message: 'chore(release): bump @krudi/eslint-config from {old} to {new}'
+        secrets:
+            NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 ```

@@ -15,6 +15,10 @@ inputs:
         description: 'History depth to fetch'
         required: false
         default: '1'
+    ref:
+        description: 'Branch, tag, or SHA to checkout'
+        required: false
+        default: ''
 
 runs:
     using: 'composite'
@@ -23,6 +27,7 @@ runs:
           uses: actions/checkout@v5
           with:
               fetch-depth: ${{ inputs.fetch_depth }}
+              ref: ${{ inputs.ref }}
 
         - name: Record checkout metadata
           id: checkout-meta

@@ -1,4 +1,4 @@
-name: Create Release
+name: Release And Publish
 
 on:
     workflow_call:
@@ -7,18 +7,23 @@ on:
                 description: 'Release version without the tag prefix'
                 required: true
                 type: string
+            publish_target:
+                description: 'What to publish after the release is created: none, npm, or vscode'
+                required: false
+                type: string
+                default: 'none'
             create_latest:
                 description: 'Mark the GitHub release as latest'
                 required: false
                 type: boolean
                 default: true
             working_directory:
-                description: 'Repository directory where npm version should run'
+                description: 'Repository directory where release and publish commands should run'
                 required: false
                 type: string
                 default: '.'
             workspace:
-                description: 'Workspace package name to version'
+                description: 'Workspace package name to version or publish'
                 required: false
                 type: string
                 default: ''
@@ -57,10 +62,104 @@ on:
                 required: false
                 type: string
                 default: '0'
+            install_command:
+                description: 'Command used to install dependencies before publishing'
+                required: false
+                type: string
+                default: 'npm install'
+            check_command:
+                description: 'Command used to validate the package before publishing'
+                required: false
+                type: string
+                default: ''
+            build_command:
+                description: 'Command used to build before npm publishing'
+                required: false
+                type: string
+                default: 'npm run build'
+            npm_access:
+                description: 'npm publish access level'
+                required: false
+                type: string
+                default: 'public'
+            npm_provenance:
+                description: 'Enable npm provenance'
+                required: false
+                type: boolean
+                default: true
+            package_command:
+                description: 'Command used to build the VSIX package'
+                required: false
+                type: string
+                default: 'npx @vscode/vsce package'
+            publish_command:
+                description: 'Command used to publish to the VS Code Marketplace'
+                required: false
+                type: string
+                default: 'npx @vscode/vsce publish -p "$VSCE_PAT"'
+            vsce_glob:
+                description: 'Glob for the generated VSIX artifact'
+                required: false
+                type: string
+                default: '*.vsix'
+        secrets:
+            NODE_AUTH_TOKEN:
+                description: 'Token used for npm publishing'
+                required: false
+            VSCE_PAT:
+                description: 'Token used to publish to the Visual Studio Marketplace'
+                required: false
+            GITHUB_TOKEN:
+                description: 'Token used to upload release assets'
+                required: false
 
 jobs:
-    release:
+    validate:
         runs-on: ubuntu-latest
+        steps:
+            - name: Validate publish target
+              shell: bash
+              env:
+                  VERSION: ${{ inputs.version }}
+                  PUBLISH_TARGET: ${{ inputs.publish_target }}
+                  WORKSPACE: ${{ inputs.workspace }}
+                  NODE_TOKEN_SET: ${{ secrets.NODE_AUTH_TOKEN != '' }}
+                  VSCE_PAT_SET: ${{ secrets.VSCE_PAT != '' }}
+              run: |
+                  if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+                    echo "Version must be a semantic version like 0.5.0 or 0.5.0-beta.1."
+                    exit 1
+                  fi
+
+                  case "$PUBLISH_TARGET" in
+                    none|npm|vscode) ;;
+                    *)
+                      echo "publish_target must be one of: none, npm, vscode"
+                      exit 1
+                      ;;
+                  esac
+
+                  if [ "$PUBLISH_TARGET" = "npm" ] && [ "$NODE_TOKEN_SET" != "true" ]; then
+                    echo "NODE_AUTH_TOKEN secret is required when publish_target is npm."
+                    exit 1
+                  fi
+
+                  if [ "$PUBLISH_TARGET" = "vscode" ] && [ "$VSCE_PAT_SET" != "true" ]; then
+                    echo "VSCE_PAT secret is required when publish_target is vscode."
+                    exit 1
+                  fi
+
+                  if [ "$PUBLISH_TARGET" = "npm" ] && [ -z "$WORKSPACE" ]; then
+                    echo "Warning: npm publish will target the repository root package because workspace is empty."
+                  fi
+
+    release:
+        needs: validate
+        runs-on: ubuntu-latest
+        outputs:
+            tag: ${{ steps.package-meta.outputs.tag }}
+            version: ${{ inputs.version }}
+            package_name: ${{ steps.package-meta.outputs.package_name }}
         permissions:
             contents: write
 
@@ -73,16 +172,6 @@ jobs:
               with:
                   cache: npm
                   node_version_file: ${{ inputs.node_version_file }}
-
-            - name: Validate release input
-              shell: bash
-              env:
-                  VERSION: ${{ inputs.version }}
-              run: |
-                  if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-                    echo "Version must be a semantic version like 0.5.0 or 0.5.0-beta.1."
-                    exit 1
-                  fi
 
             - name: Read current package metadata
               id: package-meta
@@ -258,3 +347,42 @@ jobs:
                     --title "$TAG_NAME" \
                     --generate-notes \
                     $LATEST_FLAG
+
+    publish-npm:
+        if: ${{ inputs.publish_target == 'npm' }}
+        needs: release
+        uses: krudi/reusable-actions/.github/workflows/publish-npm.yaml@main
+        with:
+            working_directory: ${{ inputs.working_directory }}
+            workspace: ${{ inputs.workspace }}
+            build_command: ${{ inputs.build_command }}
+            check_command: ${{ inputs.check_command }}
+            install_command: ${{ inputs.install_command }}
+            node_version_file: ${{ inputs.node_version_file }}
+            npm_access: ${{ inputs.npm_access }}
+            npm_provenance: ${{ inputs.npm_provenance }}
+            npm_tag: ${{ needs.release.outputs.tag }}
+            checkout_fetch_depth: ${{ inputs.checkout_fetch_depth }}
+            checkout_ref: ${{ needs.release.outputs.tag }}
+        secrets:
+            NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+
+    publish-vscode:
+        if: ${{ inputs.publish_target == 'vscode' }}
+        needs: release
+        uses: krudi/reusable-actions/.github/workflows/publish-vscode.yaml@main
+        with:
+            working_directory: ${{ inputs.working_directory }}
+            install_command: ${{ inputs.install_command }}
+            check_command: ${{ inputs.check_command }}
+            package_command: ${{ inputs.package_command }}
+            publish_command: ${{ inputs.publish_command }}
+            node_version_file: ${{ inputs.node_version_file }}
+            vsce_glob: ${{ inputs.vsce_glob }}
+            checkout_fetch_depth: ${{ inputs.checkout_fetch_depth }}
+            checkout_ref: ${{ needs.release.outputs.tag }}
+            release_latest: ${{ inputs.create_latest }}
+            release_tag: ${{ needs.release.outputs.tag }}
+        secrets:
+            VSCE_PAT: ${{ secrets.VSCE_PAT }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

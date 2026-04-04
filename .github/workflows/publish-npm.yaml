@@ -53,6 +53,11 @@ on:
                 required: false
                 type: string
                 default: '1'
+            checkout_ref:
+                description: 'Branch, tag, or SHA to checkout before publishing'
+                required: false
+                type: string
+                default: ''
         secrets:
             NODE_AUTH_TOKEN:
                 description: 'Token used for npm publishing'
@@ -69,6 +74,7 @@ jobs:
             - uses: krudi/reusable-actions/.github/actions/github-checkout@main
               with:
                   fetch_depth: ${{ inputs.checkout_fetch_depth }}
+                  ref: ${{ inputs.checkout_ref }}
 
             - uses: krudi/reusable-actions/.github/actions/node-setup@main
               with:

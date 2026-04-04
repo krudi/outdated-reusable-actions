@@ -43,11 +43,21 @@ on:
                 required: false
                 type: string
                 default: '1'
+            checkout_ref:
+                description: 'Branch, tag, or SHA to checkout before packaging/publishing'
+                required: false
+                type: string
+                default: ''
             release_latest:
                 description: 'Whether the release should be considered latest when a release asset is uploaded'
                 required: false
                 type: boolean
                 default: true
+            release_tag:
+                description: 'Release tag to upload VSIX assets to'
+                required: false
+                type: string
+                default: ''
         secrets:
             VSCE_PAT:
                 description: 'Token used to publish to the Visual Studio Marketplace'
@@ -66,6 +76,7 @@ jobs:
             - uses: krudi/reusable-actions/.github/actions/github-checkout@main
               with:
                   fetch_depth: ${{ inputs.checkout_fetch_depth }}
+                  ref: ${{ inputs.checkout_ref }}
 
             - uses: krudi/reusable-actions/.github/actions/node-setup@main
               with:
@@ -90,12 +101,13 @@ jobs:
                   working_directory: ${{ inputs.working_directory }}
 
             - name: Upload VSIX to GitHub release
-              if: ${{ secrets.GITHUB_TOKEN != '' && github.ref_type == 'tag' }}
+              if: ${{ secrets.GITHUB_TOKEN != '' && (inputs.release_tag != '' || github.ref_type == 'tag') }}
               shell: bash
               working-directory: ${{ inputs.working_directory }}
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   VSCE_GLOB: ${{ inputs.vsce_glob }}
+                  RELEASE_TAG: ${{ inputs.release_tag }}
               run: |
                   set -euo pipefail
                   shopt -s nullglob
@@ -106,7 +118,12 @@ jobs:
                     exit 1
                   fi
 
-                  gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
+                  TARGET_TAG="$RELEASE_TAG"
+                  if [ -z "$TARGET_TAG" ]; then
+                    TARGET_TAG="$GITHUB_REF_NAME"
+                  fi
+
+                  gh release upload "$TARGET_TAG" "${files[@]}" --clobber
 
             - uses: krudi/reusable-actions/.github/actions/ci-command@main
               if: ${{ inputs.publish_command != '' }}
